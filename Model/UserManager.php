@@ -2,7 +2,8 @@
 
 namespace Bundle\FOS\UserBundle\Model;
 
-use Bundle\FOS\UserBundle\Util\String;
+use Symfony\Component\Security\Encoder\EncoderFactoryInterface;
+use Bundle\FOS\UserBundle\Util\CanonicalizerInterface;
 use Symfony\Component\Security\Exception\UnsupportedAccountException;
 use Symfony\Component\Security\Exception\UsernameNotFoundException;
 use Symfony\Component\Security\User\AccountInterface;
@@ -16,13 +17,15 @@ use Symfony\Component\Security\User\UserProviderInterface;
  */
 abstract class UserManager implements UserManagerInterface, UserProviderInterface
 {
-    protected $encoder;
+    protected $encoderFactory;
     protected $algorithm;
+    protected $canonicalizer;
 
-    public function __construct($encoder, $algorithm)
+    public function __construct(EncoderFactoryInterface $encoderFactory, $algorithm, CanonicalizerInterface $canonicalizer)
     {
-        $this->encoder = $encoder;
+        $this->encoderFactory = $encoderFactory;
         $this->algorithm = $algorithm;
+        $this->canonicalizer = $canonicalizer;
     }
 
     /**
@@ -33,8 +36,10 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
     public function createUser()
     {
         $class = $this->getClass();
+        $user = new $class;
+        $user->setAlgorithm($this->algorithm);
 
-        return new $class;
+        return $user;
     }
 
     /**
@@ -45,7 +50,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function findUserByEmail($email)
     {
-        return $this->findUserBy(array('email' => $email));
+        return $this->findUserBy(array('emailCanonical' => $this->canonicalizer->canonicalize($email)));
     }
 
     /**
@@ -56,7 +61,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function findUserByUsername($username)
     {
-        return $this->findUserBy(array('username' => $username));
+        return $this->findUserBy(array('usernameCanonical' => $this->canonicalizer->canonicalize($username)));
     }
 
     /**
@@ -67,7 +72,7 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
      */
     public function findUserByUsernameOrEmail($usernameOrEmail)
     {
-        if (String::isEmail($usernameOrEmail)) {
+        if (filter_var($usernameOrEmail, FILTER_VALIDATE_EMAIL)) {
             return $this->findUserByEmail($usernameOrEmail);
         }
 
@@ -125,7 +130,8 @@ abstract class UserManager implements UserManagerInterface, UserProviderInterfac
     {
         if (0 !== strlen($password = $user->getPlainPassword())) {
             $user->setAlgorithm($this->algorithm);
-            $user->setPassword($this->encoder->encodePassword($password, $user->getSalt()));
+            $encoder = $this->encoderFactory->getEncoder($user);
+            $user->setPassword($encoder->encodePassword($password, $user->getSalt()));
             $user->eraseCredentials();
         }
     }

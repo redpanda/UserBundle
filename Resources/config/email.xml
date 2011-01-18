@@ -6,8 +6,8 @@
 
     <parameters>
         <parameter key="fos_user.confirmation_email.enabled">false</parameter>
-        <parameter key="fos_user.confirmation_email.from_email">webmaster@site.org</parameter>
-        <parameter key="fos_user.confirmation_email.template">FOS\UserBundle:User:confirmationEmail</parameter>
+        <parameter key="fos_user.confirmation_email.from_email">webmaster@example.com</parameter>
+        <parameter key="fos_user.confirmation_email.template">FOSUserBundle:User:confirmationEmail</parameter>
     </parameters>
 
 </container>

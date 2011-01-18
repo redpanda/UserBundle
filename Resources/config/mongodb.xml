@@ -8,13 +8,13 @@
         <parameter key="fos_user.model.group.class">Bundle\FOS\UserBundle\Document\Group</parameter>
         <parameter key="fos_user.user_manager.class">Bundle\FOS\UserBundle\Document\UserManager</parameter>
         <parameter key="fos_user.group_manager.class">Bundle\FOS\UserBundle\Document\GroupManager</parameter>
-        <parameter key="fos_user.validator.unique.class">Bundle\FOS\UserBundle\Validator\Doctrine\ODM\MongoDB\UniqueValidator</parameter>
     </parameters>
 
     <services>
         <service id="fos_user.user_manager" class="%fos_user.user_manager.class%">
-            <argument type="service" id="fos_user.encoder" />
+            <argument type="service" id="security.encoder_factory" />
             <argument>%fos_user.encoder.algorithm%</argument>
+            <argument type="service" id="fos_user.util.canonicalizer" />
             <argument type="service" id="doctrine.odm.mongodb.document_manager" />
             <argument>%fos_user.model.user.class%</argument>
         </service>

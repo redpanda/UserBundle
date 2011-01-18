@@ -10,8 +10,9 @@
 
 namespace Bundle\FOS\UserBundle\Model;
 
+use Bundle\FOS\UserBundle\Util\CanonicalizerInterface;
+
 use Symfony\Component\Security\Role\RoleInterface;
-use Bundle\FOS\UserBundle\Util\String;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Security\User\AccountInterface;
@@ -21,20 +22,18 @@ use Symfony\Component\Security\Encoder\MessageDigestPasswordEncoder;
 /**
  * Storage agnostic user object
  * Has validator annotation, but database mapping must be done in a subclass.
+ *
  */
-abstract class User implements AdvancedAccountInterface, UserInterface
+abstract class User implements UserInterface
 {
     const ROLE_DEFAULT    = 'ROLE_USER';
     const ROLE_SUPERADMIN = 'ROLE_SUPERADMIN';
 
+    protected static $canonicalizer;
+
     protected $id;
 
     /**
-     * @validation:Validation({
-     *      @validation:NotBlank(message="Please enter a username", groups="Registration"),
-     *      @validation:MinLength(limit=2, message="The username is too short", groups="Registration"),
-     *      @validation:MaxLength(limit=255, message="The username is too long", groups="Registration")
-     * })
      * @var string
      */
     protected $username;
@@ -42,17 +41,17 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     /**
      * @var string
      */
-    protected $usernameLower;
+    protected $usernameCanonical;
 
     /**
-     * @validation:Validation({
-     *      @validation:NotBlank(message="Please enter an email", groups="Registration"),
-     *      @validation:Email(message="This is not a valid email", groups="Registration"),
-     *      @validation:MaxLength(limit=255, message="The email is too long", groups="Registration")
-     * })
      * @var string
      */
     protected $email;
+
+    /**
+     * @var string
+     */
+    protected $emailCanonical;
 
     /**
      * @var boolean
@@ -83,11 +82,6 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     /**
      * Plain password. Used for model validation. Must not be persisted.
      *
-     * @validation:Validation({
-     *      @validation:NotBlank(message="Please enter a password", groups="Registration"),
-     *      @validation:MinLength(limit=2, message="The password is too short", groups="Registration"),
-     *      @validation:MaxLength(limit=255, message="The password is too long", groups="Registration")
-     * })
      * @var string
      */
     protected $plainPassword;
@@ -149,6 +143,11 @@ abstract class User implements AdvancedAccountInterface, UserInterface
      */
     protected $credentialsExpireAt;
 
+    public final static function setCanonicalizer(CanonicalizerInterface $canonicalizer)
+    {
+        self::$canonicalizer = $canonicalizer;
+    }
+
     public function __construct()
     {
         $this->salt = base_convert(sha1(uniqid(mt_rand(), true)), 16, 36);
@@ -190,7 +189,7 @@ abstract class User implements AdvancedAccountInterface, UserInterface
         if ($this->getSalt() !== $account->getSalt()) {
             return false;
         }
-        if ($this->username !== $account->getUsername()) {
+        if ($this->usernameCanonical !== $account->getUsernameCanonical()) {
             return false;
         }
         if ($this->isAccountNonExpired() !== $account->isAccountNonExpired()) {
@@ -237,13 +236,13 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     }
 
     /**
-     * Get the username in lowercase used in search and sort queries
+     * Get the canonical username in search and sort queries
      *
      * @return string
      **/
-    public function getUsernameLower()
+    public function getUsernameCanonical()
     {
-        return $this->usernameLower;
+        return $this->usernameCanonical;
     }
 
     /**
@@ -267,6 +266,16 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     public function getEmail()
     {
         return $this->email;
+    }
+
+    /**
+     * Get the canonical email in search and sort queries
+     *
+     * @return string
+     **/
+    public function getEmailCanonical()
+    {
+        return $this->emailCanonical;
     }
 
     /**
@@ -429,7 +438,7 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     }
 
     /**
-     * @validation:AssertType(type="boolean")
+     * Tell if the the given user has the super admin role
      *
      * @return Boolean
      */
@@ -445,7 +454,7 @@ abstract class User implements AdvancedAccountInterface, UserInterface
      * @param User $user
      * @return boolean
      */
-    public function is(UserInterface $user = null)
+    public function isUser(UserInterface $user = null)
     {
         return null !== $user && $this->getUsername() === $user->getUsername();
     }
@@ -477,7 +486,7 @@ abstract class User implements AdvancedAccountInterface, UserInterface
     public function setUsername($username)
     {
         $this->username = $username;
-        $this->usernameLower = String::strtolower($username);
+        $this->usernameCanonical = self::$canonicalizer->canonicalize($username);
     }
 
     public function setAlgorithm($algorithm)
@@ -502,7 +511,8 @@ abstract class User implements AdvancedAccountInterface, UserInterface
      */
     public function setEmail($email)
     {
-        $this->email = String::strtolower($email);
+        $this->email = $email;
+        $this->emailCanonical = self::$canonicalizer->canonicalize($email);
     }
 
     /**

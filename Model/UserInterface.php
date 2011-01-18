@@ -10,37 +10,42 @@
 
 namespace Bundle\FOS\UserBundle\Model;
 
-interface UserInterface
+use Bundle\FOS\UserBundle\Util\CanonicalizerInterface;
+use Symfony\Component\Security\User\AdvancedAccountInterface;
+
+interface UserInterface extends AdvancedAccountInterface
 {
-    public function addRole($role);
+    static function setCanonicalizer(CanonicalizerInterface $canonicalizer);
 
-    public function getAlgorithm();
+    function addRole($role);
 
-    public function setAlgorithm($algorithm);
+    function getAlgorithm();
 
-    public function getPlainPassword();
+    function setAlgorithm($algorithm);
 
-    public function setPlainPassword($password);
+    function getPlainPassword();
 
-    public function setPassword($password);
+    function setPlainPassword($password);
 
-    public function isSuperAdmin();
+    function setPassword($password);
 
-    public function is(UserInterface $user = null);
+    function isSuperAdmin();
 
-    public function setEnabled($boolean);
+    function isUser(UserInterface $user = null);
 
-    public function setSuperAdmin($boolean);
+    function setEnabled($boolean);
 
-    public function getConfirmationToken();
+    function setSuperAdmin($boolean);
 
-    public function setConfirmationToken($confirmationToken);
+    function getConfirmationToken();
 
-    public function hasRole($role);
+    function setConfirmationToken($confirmationToken);
 
-    public function setRoles(array $roles);
+    function hasRole($role);
 
-    public function removeRole($role);
+    function setRoles(array $roles);
+
+    function removeRole($role);
 
     function getGroups();
 

@@ -8,13 +8,13 @@
         <parameter key="fos_user.model.group.class">Bundle\FOS\UserBundle\Entity\Group</parameter>
         <parameter key="fos_user.user_manager.class">Bundle\FOS\UserBundle\Entity\UserManager</parameter>
         <parameter key="fos_user.group_manager.class">Bundle\FOS\UserBundle\Entity\GroupManager</parameter>
-        <parameter key="fos_user.validator.unique.class">Bundle\FOS\UserBundle\Validator\Doctrine\ORM\UniqueValidator</parameter>
     </parameters>
 
     <services>
         <service id="fos_user.user_manager" class="%fos_user.user_manager.class%">
-            <argument type="service" id="fos_user.encoder" />
+            <argument type="service" id="security.encoder_factory" />
             <argument>%fos_user.encoder.algorithm%</argument>
+            <argument type="service" id="fos_user.util.canonicalizer" />
             <argument type="service" id="doctrine.orm.default_entity_manager" />
             <argument>%fos_user.model.user.class%</argument>
         </service>

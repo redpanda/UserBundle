@@ -26,7 +26,7 @@ class GroupController extends Controller
     {
         $groups = $this->get('fos_user.group_manager')->findGroups();
 
-        return $this->render('FOS\UserBundle:Group:list.'.$this->getRenderer(), array('groups' => $groups));
+        return $this->render('FOSUserBundle:Group:list.'.$this->getRenderer().'.html', array('groups' => $groups));
     }
 
     /**
@@ -35,7 +35,8 @@ class GroupController extends Controller
     public function showAction($groupname)
     {
         $group = $this->findGroupBy('name', $groupname);
-        return $this->render('FOS\UserBundle:Group:show.'.$this->getRenderer(), array('group' => $group));
+
+        return $this->render('FOSUserBundle:Group:show.'.$this->getRenderer().'.html', array('group' => $group));
     }
 
     /**
@@ -46,7 +47,7 @@ class GroupController extends Controller
         $group = $this->findGroupBy('name', $groupname);
         $form = $this->createForm($group);
 
-        return $this->render('FOS\UserBundle:Group:edit.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:Group:edit.'.$this->getRenderer().'.html', array(
             'form'      => $form,
             'groupname'  => $group->getName()
         ));
@@ -57,7 +58,8 @@ class GroupController extends Controller
      */
     public function updateAction($groupname)
     {
-        $user = $this->findGroupBy('name', $groupname);
+        $group = $this->findGroupBy('name', $groupname);
+        $form = $this->createForm($group);
         $form->bind($this->get('request')->request->get($form->getName()));
 
         if ($form->isValid()) {
@@ -67,7 +69,7 @@ class GroupController extends Controller
             return $this->redirect($groupUrl);
         }
 
-        return $this->render('FOS\UserBundle:Group:edit.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:Group:edit.'.$this->getRenderer().'.html', array(
             'form'      => $form,
             'groupname'  => $group->getName()
         ));
@@ -80,7 +82,7 @@ class GroupController extends Controller
     {
         $form = $this->createForm();
 
-        return $this->render('FOS\UserBundle:Group:new.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:Group:new.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -101,7 +103,7 @@ class GroupController extends Controller
             return $this->redirect($this->generateUrl('doctrine_user_group_show', array('groupname' => $group->getName())));
         }
 
-        return $this->render('FOS\UserBundle:Group:new.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:Group:new.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -123,7 +125,7 @@ class GroupController extends Controller
      *
      * @param string $key property name
      * @param mixed $value property value
-     * @throw NotFoundException if user does not exist
+     * @throws NotFoundException if user does not exist
      * @return Group
      */
     protected function findGroupBy($key, $value)
@@ -149,7 +151,7 @@ class GroupController extends Controller
     {
         $form = $this->get('fos_user.form.group');
         if (null === $object) {
-            $object = $this->get('fos_user.group_manager')->createGroup();
+            $object = $this->get('fos_user.group_manager')->createGroup('');
         }
 
         $form->setData($object);

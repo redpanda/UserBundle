@@ -9,12 +9,15 @@
 
 namespace Bundle\FOS\UserBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller as Controller;
+use Symfony\Component\Security\Acl\Permission\MaskBuilder;
+use Symfony\Component\Security\Acl\Domain\UserSecurityIdentity;
+use Symfony\Component\Security\Acl\Domain\ObjectIdentity;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Bundle\FOS\UserBundle\Model\User;
 use Bundle\FOS\UserBundle\Form\ChangePassword;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpKernel\Exception\ForbiddenHttpException;
 use Symfony\Component\Security\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Exception\AccessDeniedException;
 
 /**
  * RESTful controller managing user CRUD
@@ -28,7 +31,7 @@ class UserController extends Controller
     {
         $users = $this->get('fos_user.user_manager')->findUsers();
 
-        return $this->render('FOS\UserBundle:User:list.'.$this->getRenderer(), array('users' => $users));
+        return $this->render('FOSUserBundle:User:list.'.$this->getRenderer().'.html', array('users' => $users));
     }
 
     /**
@@ -37,7 +40,7 @@ class UserController extends Controller
     public function showAction($username)
     {
         $user = $this->findUserBy('username', $username);
-        return $this->render('FOS\UserBundle:User:show.'.$this->getRenderer(), array('user' => $user));
+        return $this->render('FOSUserBundle:User:show.'.$this->getRenderer().'.html', array('user' => $user));
     }
 
     /**
@@ -48,7 +51,7 @@ class UserController extends Controller
         $user = $this->findUserBy('username', $username);
         $form = $this->createForm($user);
 
-        return $this->render('FOS\UserBundle:User:edit.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:edit.'.$this->getRenderer().'.html', array(
             'form'      => $form,
             'username'  => $user->getUsername()
         ));
@@ -60,6 +63,7 @@ class UserController extends Controller
     public function updateAction($username)
     {
         $user = $this->findUserBy('username', $username);
+        $form = $this->createForm($user);
         $form->bind($this->get('request')->request->get($form->getName()));
 
         if ($form->isValid()) {
@@ -69,7 +73,7 @@ class UserController extends Controller
             return $this->redirect($userUrl);
         }
 
-        return $this->render('FOS\UserBundle:User:edit.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:edit.'.$this->getRenderer().'.html', array(
             'form'      => $form,
             'username'  => $user->getUsername()
         ));
@@ -82,7 +86,7 @@ class UserController extends Controller
     {
         $form = $this->createForm();
 
-        return $this->render('FOS\UserBundle:User:new.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:new.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -110,11 +114,18 @@ class UserController extends Controller
                 $url = $this->generateUrl('fos_user_user_confirmed');
             }
 
+            if ($this->container->has('security.acl.provider')) {
+                $provider = $this->container->get('security.acl.provider');
+                $acl = $provider->createAcl(ObjectIdentity::fromDomainObject($user));
+                $acl->insertObjectAce(UserSecurityIdentity::fromAccount($user), MaskBuilder::MASK_OWNER);
+                $provider->updateAcl($acl);
+            }
+
             $this->get('session')->setFlash('fos_user_user_create', 'success');
             return $this->redirect($url);
         }
 
-        return $this->render('FOS\UserBundle:User:new.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:new.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -140,7 +151,7 @@ class UserController extends Controller
     {
         $template = $this->container->getParameter('fos_user.confirmation_email.template');
         // Render the email, use the first line as the subject, and the rest as the body
-        $rendered = $this->renderView($template.'.'.$this->getRenderer(), array(
+        $rendered = $this->renderView($template.'.'.$this->getRenderer().'.txt', array(
             'user' => $user,
             'confirmationUrl' => $this->generateUrl('fos_user_user_confirm', array('token' => $user->getConfirmationToken()), true)
         ));
@@ -168,7 +179,7 @@ class UserController extends Controller
         $email = $this->get('session')->get('fos_user_send_confirmation_email/email');
         $user = $this->findUserBy('email', $email);
 
-        return $this->render('FOS\UserBundle:User:checkConfirmationEmail.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:checkConfirmationEmail.'.$this->getRenderer().'.html', array(
             'user' => $user,
         ));
     }
@@ -194,7 +205,7 @@ class UserController extends Controller
     public function confirmedAction()
     {
         $user = $this->getUser();
-        return $this->render('FOS\UserBundle:User:confirmed.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:confirmed.'.$this->getRenderer().'.html', array(
             'user' => $user,
         ));
     }
@@ -219,7 +230,7 @@ class UserController extends Controller
         $user = $this->getUser();
         $form = $this->createChangePasswordForm($user);
 
-        return $this->render('FOS\UserBundle:User:changePassword.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:changePassword.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -240,7 +251,7 @@ class UserController extends Controller
             return $this->redirect($userUrl);
         }
 
-        return $this->render('FOS\UserBundle:User:changePassword.'.$this->getRenderer(), array(
+        return $this->render('FOSUserBundle:User:changePassword.'.$this->getRenderer().'.html', array(
             'form' => $form
         ));
     }
@@ -248,14 +259,14 @@ class UserController extends Controller
     /**
      * Get a user from the security context
      *
-     * @throw ForbiddenHttpException if no user is authenticated
+     * @throws AccessDeniedException if no user is authenticated
      * @return User
      */
     protected function getUser()
     {
         $user = $this->get('security.context')->getUser();
         if (!$user) {
-            throw new ForbiddenHttpException(sprintf('Must be logged in to change your password'));
+            throw new AccessDeniedException('A logged in user is required.');
         }
 
         return $user;
@@ -266,7 +277,7 @@ class UserController extends Controller
      *
      * @param string $key property name
      * @param mixed $value property value
-     * @throw NotFoundException if user does not exist
+     * @throws NotFoundException if user does not exist
      * @return User
      */
     protected function findUserBy($key, $value)
@@ -285,11 +296,17 @@ class UserController extends Controller
     /**
      * Authenticate a user with Symfony Security
      *
+     * @param Boolean $reAuthenticate
      * @return null
      */
-    public function authenticateUser(User $user)
+    protected function authenticateUser(User $user, $reAuthenticate = false)
     {
         $token = new UsernamePasswordToken($user, null, $user->getRoles());
+
+        if (true === $reAuthenticate) {
+            $token->setAuthenticated(false);
+        }
+
         $this->get('security.context')->setToken($token);
     }
 
